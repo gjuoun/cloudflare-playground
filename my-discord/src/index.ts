@@ -8,48 +8,72 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+import {
+  fetcher,
+  getOneHook,
+  sendMessage,
+  sendMessageInForm,
+} from "./webhooks/fetcher";
+
 export interface Env {
-	// Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
-	// MY_KV_NAMESPACE: KVNamespace;
-	//
-	// Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
-	// MY_DURABLE_OBJECT: DurableObjectNamespace;
-	//
-	// Example binding to R2. Learn more at https://developers.cloudflare.com/workers/runtime-apis/r2/
-	// MY_BUCKET: R2Bucket;
-	//
-	// Example binding to a Service. Learn more at https://developers.cloudflare.com/workers/runtime-apis/service-bindings/
-	// MY_SERVICE: Fetcher;
+  // Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
+  // MY_KV_NAMESPACE: KVNamespace;
+  //
+  // Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
+  // MY_DURABLE_OBJECT: DurableObjectNamespace;
+  //
+  // Example binding to R2. Learn more at https://developers.cloudflare.com/workers/runtime-apis/r2/
+  // MY_BUCKET: R2Bucket;
+  //
+  // Example binding to a Service. Learn more at https://developers.cloudflare.com/workers/runtime-apis/service-bindings/
+  // MY_SERVICE: Fetcher;
 
-	APP_ID: string,
-	APP_PUBLIC_KEY: string,
-	BOT_TOKEN: string,
+  APP_ID: string;
+  APP_PUBLIC_KEY: string;
+  BOT_TOKEN: string;
 
-	CHANNEL_ID: string,
-	WEBHOOK_ID: string,
-	WEBHOOK_TOKEN: string
+  CHANNEL_ID: string;
+  WEBHOOK_ID: string;
+  WEBHOOK_TOKEN: string;
 }
 
-const apiHost = `https://discord.com/api/v10`
+export let globalEnv: Env;
 
 export default {
-	async fetch(
-		request: Request,
-		env: Env,
-		ctx: ExecutionContext
-	): Promise<Response> {
-		const {
-			APP_ID,APP_PUBLIC_KEY,BOT_TOKEN,CHANNEL_ID,WEBHOOK_ID,WEBHOOK_TOKEN
-		} = env
-		const respons = await fetch(`${apiHost}/webhooks/${WEBHOOK_ID}`, {
-			headers: {
-				'Content-Type': 'application/json',
-				'Authorization': `Bot ${BOT_TOKEN}`,
-				"User-Agent": "DiscordBot (https://discord.com, 0.1)"
-			}
-		})
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<Response> {
+    if (!globalEnv) {
+      globalEnv = env;
+    }
 
+    if (request.method === "GET") {
+      return sendMessage("Hello World!", {
+        webhookId: globalEnv.WEBHOOK_ID,
+        webhookToken: globalEnv.WEBHOOK_TOKEN,
+      });
+    } else {
+      const formData = new FormData();
 
-		return respons
-	},
+      const body = await request.json();
+      formData.append(
+        "payload_json",
+        JSON.stringify({
+          content: "Someone is asking for help!",
+        })
+      );
+
+      const file = new File([JSON.stringify(body, null, 2)], "state.json", {
+        type: "application/json",
+      });
+      formData.append("files[1]", file);
+
+      return sendMessageInForm(formData, {
+        webhookId: globalEnv.WEBHOOK_ID,
+        webhookToken: globalEnv.WEBHOOK_TOKEN,
+      });
+    }
+  },
 };
