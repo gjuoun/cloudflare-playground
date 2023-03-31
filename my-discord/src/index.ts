@@ -8,12 +8,7 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
-import {
-  fetcher,
-  getOneHook,
-  sendMessage,
-  sendMessageInForm,
-} from "./webhooks/fetcher";
+import { sendMessage, sendMessageInForm } from "./webhooks/fetcher";
 
 export interface Env {
   // Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
@@ -70,10 +65,22 @@ export default {
       });
       formData.append("files[1]", file);
 
-      return sendMessageInForm(formData, {
+      const res = await sendMessageInForm(formData, {
         webhookId: globalEnv.WEBHOOK_ID,
         webhookToken: globalEnv.WEBHOOK_TOKEN,
       });
+
+      // add CORS headers
+      const newHeaders = new Headers(res.headers);
+      newHeaders.set("Access-Control-Allow-Origin", "*");
+      newHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+      newHeaders.set("Access-Control-Allow-Headers", "Content-Type");
+
+      const newReponse = new Response(res.body, {
+        headers: newHeaders,
+      });
+
+      return newReponse;
     }
   },
 };
