@@ -1,0 +1,6 @@
+name = "vanilla-js-worker-site"
+main = "src/index.ts"
+compatibility_date = "2023-04-01"
+
+[site]
+bucket = "./dist"
