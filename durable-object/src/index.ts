@@ -1,33 +1,50 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `wrangler dev src/index.ts` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `wrangler publish src/index.ts --name my-worker` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
-
-export interface Env {
-	// Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
-	// MY_KV_NAMESPACE: KVNamespace;
-	//
-	// Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
-	// MY_DURABLE_OBJECT: DurableObjectNamespace;
-	//
-	// Example binding to R2. Learn more at https://developers.cloudflare.com/workers/runtime-apis/r2/
-	// MY_BUCKET: R2Bucket;
-	//
-	// Example binding to a Service. Learn more at https://developers.cloudflare.com/workers/runtime-apis/service-bindings/
-	// MY_SERVICE: Fetcher;
-}
+// In order for the workers runtime to find the class that implements
+// our Durable Object namespace, we must export it from the root module.
+export { CounterTs } from "./counter";
 
 export default {
-	async fetch(
-		request: Request,
-		env: Env,
-		ctx: ExecutionContext
-	): Promise<Response> {
-		return new Response("Hello World!");
-	},
+  async fetch(request: Request, env: Env) {
+    try {
+      return await handleRequest(request, env);
+    } catch (e) {
+      return new Response(`${e}`);
+    }
+  },
 };
+
+async function handleRequest(request: Request, env: Env) {
+  let url = new URL(request.url);
+  let name = url.searchParams.get("name");
+  if (!name) {
+    return new Response(
+      "Select a Durable Object to contact by using" +
+        " the `name` URL query string parameter. e.g. ?name=A"
+    );
+  }
+
+  // Every unique ID refers to an individual instance of the Counter class that
+  // has its own state. `idFromName()` always returns the same ID when given the
+  // same string as input (and called on the same class), but never the same
+  // ID for two different strings (or for different classes).
+  let id = env.COUNTER.idFromName(name);
+
+  // Construct the stub for the Durable Object using the ID. A stub is a
+  // client object used to send messages to the Durable Object.
+  let obj = env.COUNTER.get(id);
+  console.log("request", request.method);
+
+  // Send a request to the Durable Object, then await its response.
+  let resp = await obj.fetch(request);
+  return resp;
+
+  let json: any = await request.json();
+  return new Response(JSON.stringify(json));
+}
+
+export interface Env {
+  COUNTER: DurableObjectNamespace;
+}
+
+function isOdd(n: number) {
+  return n % 2 === 1;
+}

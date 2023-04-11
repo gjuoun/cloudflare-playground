@@ -1,3 +1,11 @@
 name = "durable-object"
 main = "src/index.ts"
 compatibility_date = "2023-04-07"
+
+
+[durable_objects]
+bindings = [{name = "COUNTER", class_name = "CounterTs"}]
+
+[[migrations]]
+tag = "v1" # Should be unique for each entry
+new_classes = ["CounterTs"]
